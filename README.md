@@ -31,7 +31,7 @@ The repo contains the reinforcement learning code of Altun-Core, Altun-Core-RL.
             --reward_discount $reward_discount \
             --mutate_env_fn ${mutate_env_fn} \
             --saved_steps 20 \
-            --reward latency
+            --reward TPS
     ```
 * `reward.py` implements the reward function.
 * `utils.py` implements some auxiliary functions
