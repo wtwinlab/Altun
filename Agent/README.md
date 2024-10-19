@@ -1,3 +1,5 @@
+# Altun
+Altun: On the Design and Implementation of A Tunable Distributed Ledger Framework
 
 # Altun-Core-RL
 The repo contains the reinforcement learning code of Altun-Core, Altun-Core-RL.
