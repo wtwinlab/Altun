@@ -181,11 +181,10 @@ if __name__ == "__main__":
     if args.checkpoint is not None and os.path.isfile(args.checkpoint):
         logger.info(f"Load Checkpoint {args.checkpoint}")
         agent.load_checkpoint(args.checkpoint)
-        # 使用正则表达式提取所有数字
+
         cname = os.path.basename(args.checkpoint)
         numbers = re.findall(r'\d+', cname)
 
-        # 如果需要将提取到的数字转为整数，可以这样做
         numbers = [int(num) for num in numbers]
         base_number = numbers[0]
 

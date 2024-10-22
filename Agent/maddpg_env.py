@@ -68,9 +68,8 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         self.config["default_config_file"] = os.path.join(self.config["project_dir"], self.config["default_config_file"])
         self.config["action_file"] = os.path.join(self.config["project_dir"], self.config["action_file"])
         self.config["env_mutation_file"] = os.path.join(self.config["project_dir"], self.config["env_mutation_file"])
-        # 检查文件是否存在
+
         if os.path.exists(self.config["env_mutation_file"]):
-            # 如果文件存在，删除文件
             os.remove(self.config["env_mutation_file"])
             logger.info(f"{self.config["env_mutation_file"]} 已被删除。")
         else:
@@ -274,7 +273,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
 
     def _next_observation(self):
         logger.info("_next_observation")
-        # 获取系统执行action之后的状态
+        # state after action applied
         ob_data = []
         logger.info(self.config['current_performance_file'])
         obs_dic = parse_observation_file(self.config['current_performance_file'], self.config['action_file'], \
@@ -298,7 +297,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
             logger.info(obs_dic[c])
             logger.info(self.observaton_str_mapping_dict[c])
             obs_dic[c] = self.observaton_str_mapping_dict[c][obs_dic[c]]
-        # 把数据归一化，范围， 0-1
+        # 0-1
         for idx, n in enumerate(self.space_name):
             # print(obs_dic)
             ob_data.append( obs_dic[n] / self.obs_space_scale[n] if  not isinstance(self.obs_space_scale[n],  tuple) else (obs_dic[n] - self.obs_space_scale[n][0] ) / ( self.obs_space_scale[n][-1] - self.obs_space_scale[n][0]))

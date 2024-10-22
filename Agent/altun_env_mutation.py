@@ -4,18 +4,17 @@ import numpy as np
 class ElementCycler:
     def __init__(self, lst, step_num):
         self.lst = lst
-        self.index = 0  # 当前列表元素的索引
-        self.count = 0  # 当前元素的调用次数
+        self.index = 0  # 
+        self.count = 0  # 
         self.step_num = step_num
 
     def get_element(self):
         element = self.lst[self.index]
         self.count += 1
 
-        # 每step_num次后移动到下一个元素
         if self.count == self.step_num:
-            self.count = 0  # 重置计数器
-            self.index = (self.index + 1) % len(self.lst)  # 循环访问列表
+            self.count = 0  # reset
+            self.index = (self.index + 1) % len(self.lst)  
 
         return element
 
