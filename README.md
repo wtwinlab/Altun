@@ -1,8 +1,10 @@
 # Altun
 Altun: On the Design and Implementation of A Tunable Distributed Ledger Framework
 
-# Altun-Core-RL
-The repo contains the reinforcement learning code of Altun-Core, Altun-Core-RL.
+# Altun-Core and Altun-RL
+The repo contains the system source code of Altun-Core and the reinforcement learning code of Altun-RL.
+
+# Altun-RL
 
 ## Pre-requirement
 
@@ -10,8 +12,8 @@ The repo contains the reinforcement learning code of Altun-Core, Altun-Core-RL.
 
 ## Introduction
 
-* `system_config/config.json` contains the configurations of  Altun-Core-RL.
-* `online_maddpg.py` is the main script of Altun-Core-RL.
+* `system_config/config.json` contains the configurations of  Altun-RL.
+* `online_maddpg.py` is the main script of Altun-RL.
 
     - `$config_cft_file` is the path to `system_config/config.json`
     - `$project_dir` is the path to Altun-Core
@@ -35,4 +37,4 @@ The repo contains the reinforcement learning code of Altun-Core, Altun-Core-RL.
     ```
 * `reward.py` implements the reward function.
 * `utils.py` implements some auxiliary functions
-* `maddpg_env.py` wraps the interaction betwenn `Altun-Core` and `Altun-Core-RL`.
+* `maddpg_env.py` wraps the interaction betwenn `Altun-Core` and `Altun-RL`.
