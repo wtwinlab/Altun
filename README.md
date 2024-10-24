@@ -19,7 +19,7 @@ The repo contains the system source code of Altun-Core and the reinforcement lea
     - `$project_dir` is the path to Altun-Core
     - `$saved_folder` is the saved folder for Altun-Core-RL
     - `$fn_name` is the reward function name, default `altun_reward`.
-    - `$top_k` and `$reward_discount` are two parametners for the reward function.
+    - `$top_k` and `$reward_discount` are two parameters for the reward function.
     ```shell
     python online_maddpg.py \
             --config_file $config_cft_file \
@@ -37,4 +37,4 @@ The repo contains the system source code of Altun-Core and the reinforcement lea
     ```
 * `reward.py` implements the reward function.
 * `utils.py` implements some auxiliary functions
-* `maddpg_env.py` wraps the interaction betwenn `Altun-Core` and `Altun-RL`.
+* `maddpg_env.py` wraps the interaction between `Altun-Core` and `Altun-RL`.
