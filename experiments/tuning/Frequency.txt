@@ -1,0 +1,40 @@
+./exp-sys-bft.sh > log/run1.log 2>&1 &
+./exp-sys-cft.sh > log/run1.log 2>&1 &
+
+grep "chainedhotstuff" ./*.json | wc -l > count_alg.txt
+grep "simplehotstuff" ./*.json| wc -l >> count_alg.txt
+grep "fasthotstuff" ./*.json| wc -l >> count_alg.txt
+grep \"paxos\" ./*.json| wc -l >> count_alg.txt
+grep "epaxos" ./*.json| wc -l >> count_alg.txt
+grep "vpaxos" ./*.json| wc -l >> count_alg.txt
+grep "wpaxos" ./*.json| wc -l >> count_alg.txt
+
+w_2_tps ---> frequency:
+
+training
+chainedhotstuff 35
+simplehotstuff 20
+fasthotstuff 24
+paxos 306
+epaxos 62
+vpaxos 962
+wpaxos 91
+
+w_latency
+chainedhotstuff 162
+simplehotstuff 767
+fasthotstuff 453
+paxos 17
+epaxos 23
+vpaxos 56
+wpaxos 18
+
+inference
+chainedhotstuff 0
+simplehotstuff 0
+fasthotstuff 0
+paxos 2
+epaxos 0
+vpaxos 0
+wpaxos 0
+
