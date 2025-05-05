@@ -10,7 +10,7 @@ from loguru import logger
 import time
 import re
 import json
-
+import pdb
 def load_checkpoint(agent, filename):
     if os.path.isfile(filename):
         print(f"Loading checkpoint from {filename}")
@@ -40,7 +40,23 @@ def get_args():
         default="cuda" if torch.cuda.is_available() else "cpu",
     )
     parser.add_argument("--reward", default="TPS", type=str, choices=["TPS",'latency'])
-    parser.add_argument("--reward_fn", type=str, required=True)
+    # parser.add_argument("--reward_fn", type=str, required=True)
+    # Updated reward function options
+    parser.add_argument(
+        "--reward_fn", 
+        type=str, 
+        default="best_and_pre",
+        choices=[
+            "best_and_pre",  # Original function
+            "adaptive_consensus_reward", # experiment
+            "dynamic_reward_function",        # New function 1
+            "adaptive_reward_scaling",        # New function 2
+            "env_aware_reward",              # New function 3
+            "progressive_reward_shaping",     # New function 4
+            "multi_objective_reward"         # New function 5
+        ],
+        help="Reward function to use during training"
+    )
     parser.add_argument("--mutate_env_fn", type=str, default="mutate_env")
     parser.add_argument("--reward_discount", type=float, default=0.8)
     parser.add_argument("--reward_top_num", type=int, default=3)
@@ -49,20 +65,30 @@ def get_args():
     parser.add_argument("--saved_steps", type=int, default=20)
     parser.add_argument("--inference",  action='store_true')
     parser.add_argument("--checkpoint", type=str, default=None)
+    # parameters for advanced reward functions
+    parser.add_argument("--window_size", type=int, default=20,
+                      help="Window size for adaptive reward scaling")
+    parser.add_argument("--total_steps", type=int, default=5000,
+                      help="Total expected steps for progressive reward shaping")
+    
     return parser.parse_args()
 
 
 
 if __name__ == "__main__":
+    # check if GPU is avaiable or not.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # read passed parameters
     args=get_args()
     # Get the current time and format it (e.g., "2024-10-10_15-30-00")
     current_time = time.strftime("%Y-%m-%d_%H-%M-%S")
+    # create a log file name with f"{args.saved_folder}/rl_maddpg_{current_time}.log"
     logger.add(f"{args.saved_folder}/rl_maddpg_{current_time}.log")
     logger.info(f"===== Altun MADDPG, Training {not args.inference} =====")
+    # save Agent weights to args.saved_folder/"models"
     saved_model_path = os.path.join(args.saved_folder, "models")
     os.makedirs(saved_model_path, exist_ok=True)
-    # Define the network configuration
+    # Define the network/deep learning network configuration
     NET_CONFIG = {
         "arch": "mlp",
         "hidden_size": args.hidden_sizes
@@ -87,10 +113,13 @@ if __name__ == "__main__":
     }
 
      # Initialize the environment
+    # breakpoint()
     env = VirtualEnv_MADDPG(args.config_file, 0, args.reward, args.record_file, args.saved_folder, args)
     # env = parallel_to_aec_wrapper(base_env)  # Convert to AEC format if needed
     # env = parallel_wrapper_fn(env)           # Apply parallel wrapper
     # env = env()
+    
+    # set the environemtn to the inital state
     env.reset()
 
     try:
@@ -106,9 +135,9 @@ if __name__ == "__main__":
         INIT_HP["MAX_ACTION"] = None
         INIT_HP["MIN_ACTION"] = None
     except Exception:
-        for agent in env.agents:
-            logger.info(agent)
-            logger.info(env.action_space(agent))
+        for maddpg_agent in env.agents:
+            logger.info(maddpg_agent)
+            logger.info(env.action_space(maddpg_agent))
 
         action_dim = [env.action_space(agent).shape[0] for agent in env.agents]
         INIT_HP["DISCRETE_ACTIONS"] = False
@@ -160,7 +189,7 @@ if __name__ == "__main__":
     max_action = INIT_HP["MAX_ACTION"]
     min_action = INIT_HP["MIN_ACTION"]
     num_envs = 1
-    agent = MADDPG(
+    maddpg_agent = MADDPG(
         state_dims=state_dim,
         action_dims=action_dim,
         one_hot=one_hot,
@@ -180,11 +209,12 @@ if __name__ == "__main__":
     base_number = 0
     if args.checkpoint is not None and os.path.isfile(args.checkpoint):
         logger.info(f"Load Checkpoint {args.checkpoint}")
-        agent.load_checkpoint(args.checkpoint)
-
+        maddpg_agent.load_checkpoint(args.checkpoint)
+        # 使用正则表达式提取所有数字
         cname = os.path.basename(args.checkpoint)
         numbers = re.findall(r'\d+', cname)
 
+        # 如果需要将提取到的数字转为整数，可以这样做
         numbers = [int(num) for num in numbers]
         base_number = numbers[0]
 
@@ -217,7 +247,7 @@ if __name__ == "__main__":
         )
         logger.info(f"Training Agen Mask {agent_mask}")
         astart_time = time.time()
-        cont_actions, discrete_action = agent.get_action(
+        cont_actions, discrete_action = maddpg_agent.get_action(
             state, is_training, info
         )
         aend_time = time.time()
@@ -225,7 +255,7 @@ if __name__ == "__main__":
         logger.info(f"Get Action Time Detla {t}, Timestamp {astart_time} - {aend_time}")
         execution_times.append(t)
         
-        if agent.discrete_actions:
+        if maddpg_agent.discrete_actions:
             action = discrete_action
         else:
             action = cont_actions
@@ -244,12 +274,12 @@ if __name__ == "__main__":
         for agent_id, r in reward.items():
             agent_reward[agent_id] += r[0]
 
-        if (memory.counter % agent.learn_step == 0) and (
-            len(memory) >= agent.batch_size
+        if (memory.counter % maddpg_agent.learn_step == 0) and (
+            len(memory) >= maddpg_agent.batch_size
         ) and is_training:
-            experiences = memory.sample(agent.batch_size)
+            experiences = memory.sample(maddpg_agent.batch_size)
             logger.info("Learning, Update Agent Model Weights")
-            agent.learn(experiences)
+            maddpg_agent.learn(experiences)
 
         if step % 50:
             json.dump(timestamp_file, open(os.path.join(args.saved_folder, "timestampe.json"),  "w"))
@@ -261,7 +291,7 @@ if __name__ == "__main__":
         if memory.counter % args.saved_steps == 0 and is_training:
             filename = f"MADDPG_trained_agent_{memory.counter+base_number}.pt"
             checkpoint_path = os.path.join(saved_model_path, filename)
-            agent.save_checkpoint(checkpoint_path)
+            maddpg_agent.save_checkpoint(checkpoint_path)
     # Compute the average execution time
     average_execution_time = sum(execution_times) / len(execution_times)
     logger.info(f'Average execution time per iteration: {sum(execution_times)}/{len(execution_times)} {average_execution_time:.4f} seconds')
@@ -270,4 +300,4 @@ if __name__ == "__main__":
         logger.info("Save Final Model Weights")
         filename = f"MADDPG_trained_agent_{memory.counter+base_number}_final.pt"
         checkpoint_path = os.path.join(saved_model_path, filename)
-        agent.save_checkpoint(checkpoint_path)
+        maddpg_agent.save_checkpoint(checkpoint_path)

@@ -68,8 +68,9 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         self.config["default_config_file"] = os.path.join(self.config["project_dir"], self.config["default_config_file"])
         self.config["action_file"] = os.path.join(self.config["project_dir"], self.config["action_file"])
         self.config["env_mutation_file"] = os.path.join(self.config["project_dir"], self.config["env_mutation_file"])
-
+        # 检查文件是否存在
         if os.path.exists(self.config["env_mutation_file"]):
+            # 如果文件存在，删除文件
             os.remove(self.config["env_mutation_file"])
             logger.info(f"{self.config["env_mutation_file"]} 已被删除。")
         else:
@@ -98,7 +99,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         self.agent_mask = { a:True for a in self.agents }
         bft_in_default = json.load(open(self.config["default_config_file"]))['bft']
         logger.info(f"Default bft {bft_in_default}")
-        assert not bft_in_default
+        # assert not bft_in_default
         if bft_in_default:
             self.agent_mask['bft_alg'] = True
             self.agent_mask['cft_alg'] = False
@@ -112,7 +113,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
          # Configure Observation Space
         performance_config =  self.config['observation_space']['performance']
         network_config = self.config['observation_space']['network']
-        workload_config =  self.config['observation_space']['workload']
+        workload_config =  self.config['observation_space']['conditions']
         self.obs_space_scale = {}
         self.observaton_str_mapping_dict = { }
 
@@ -154,18 +155,23 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         for n in performance_config:
             self.obs_space_scale[n] = (performance_config[n][0], performance_config[n][1])
  
-        logger.info(f"obs_space_scale: {self.obs_space_scale}")
+        logger.info(f"1.obs_space_scale: {self.obs_space_scale}")
         logger.info(f"action_space_scale: {self.action_space_scale}")
 
         # Initialize environment state
-        # logger.info("Start Init Env state")
+        logger.info("Start Init Env state")
         #if os.path.isfile(self.config["env_mutation_file"]):
         #self.mutation_env = {'env_Concurrency', 'env_W', 'env_K'}
         self.environments =  self.config["env_mutation"]
-        init_state_dict = parse_observation_file(self.config['current_performance_file'] if os.path.isfile(self.config['current_performance_file'] ) else None, \
-                        self.config['default_config_file'], self.space_name, env_mutation_file=None, environments=self.environments) 
+        init_state_dict = parse_observation_file(
+            self.config['current_performance_file'] if os.path.isfile(self.config['current_performance_file'] ) else None,
+            self.config['default_config_file'], 
+            self.space_name, 
+            env_mutation_file=None, 
+            environments=self.environments) 
         logger.info("init_state_dict")
         logger.info(init_state_dict)
+
         self.mutation_env = {}
         for e in self.environments:
             self.mutation_env[f"env_{e}"] = init_state_dict[f"env_{e}"]
@@ -181,8 +187,11 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         logger.info(self.observaton_str_mapping_dict)
         logger.info(init_state_dict)
         for c in self.observaton_str_mapping_dict:
+            logger.info(c)
+            # logger.info(init_state_dict[c])
+            logger.info( self.observaton_str_mapping_dict[c])
             init_state_dict[c] = self.observaton_str_mapping_dict[c][init_state_dict[c]]
-        init_state = []
+        init_state=[]
         # if TPS and latency is not read from self.config['current_performance_file'], set them to zero
         init_state_dict['TPS']= init_state_dict.get('TPS', 0) if init_state_dict.get('TPS', 0) != None else 0
         init_state_dict['latency']=init_state_dict.get('latency', 0) if init_state_dict.get('latency', 0) != None else 0
@@ -212,17 +221,38 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
                 f.write(f"{self.action_count}, {obs_dic['TPS']}, {obs_dic['latency']}, {reward}, {delta_best}, {delta_pre},{starttime},{endtime},{algorithm}\n")
             logger.info(f"----- log performance, {obs_dic['TPS']}, {obs_dic['latency']}, {reward}, {delta_best}, {delta_pre},{starttime},{endtime},{algorithm}")
         else:
+            logger.info("Run failed or timed out. ")
             logger.info("Rewards are set to 0")
             obs = self.init_state
             reward = 0
+            delta_best = 0
+            delta_pre = 0
+            endtime=time.time()
+            # Log the failure
+            algorithm = json.load(open(self.config['action_file']))['algorithm']
+            with open(self.record_file, "a") as f:
+                f.write(f"{self.action_count}, 0, 0, {reward}, {delta_best}, {delta_pre},{starttime},{endtime},{algorithm}\n")
+            # failed_log_path = os.path.join(os.path.dirname(self.record_file), "failed_attempts.log")
+            # with open(failed_log_path, "a") as f:
+            #     f.write(f"{self.action_count}, 0, 0, 0, 0, 0, {starttime}, {endtime}, {algorithm}\n")
 
-        if os.path.isfile(self.config["action_file"]) and isSuccess:
+
+        if os.path.isfile(self.config["action_file"]):
             action_filename = f"action_{self.action_count}.json"
-            performance_filename = f"performance_{self.action_count}.json"
             shutil.copyfile(self.config["action_file"], os.path.join(self.config["history_action_dir"], action_filename))
-            shutil.copyfile(self.config['current_performance_file'], os.path.join(self.config["history_performance_dir"], performance_filename))
-            self.action_count += 1
+        
+        performance_filename = f"performance_{self.action_count}.json"
+        dest_path = os.path.join(self.config["history_performance_dir"], performance_filename)
+        if isSuccess:
+            shutil.copyfile(self.config["current_performance_file"], dest_path)
+        else:
+            logger.info("Write a failed JSON object to the file")
+            failed_data = {"TPS": 0, "latency": 0}
+            with open(dest_path, "w") as f:
+                json.dump(failed_data, f, indent=4)
 
+        self.action_count += 1
+   
         #return obs, reward, terminated, truncated, self._get_info()
         # 模拟下一次环境变化
         logger.info(f"Mutation ENV {self.args.mutate_env_fn}")
@@ -249,6 +279,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
                 self.agent_mask['bft_pol'] = False
             if "cft_pol" in self.agents:
                 self.agent_mask['cft_pol'] = True
+        
         logger.info(f"Change ENV {self.mutation_env}")
         logger.info(f"agent_mask {self.agent_mask}")
         with open(self.config['env_mutation_file'], "w") as f:
@@ -273,7 +304,7 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
 
     def _next_observation(self):
         logger.info("_next_observation")
-        # state after action applied
+        # 获取系统执行action之后的状态
         ob_data = []
         logger.info(self.config['current_performance_file'])
         obs_dic = parse_observation_file(self.config['current_performance_file'], self.config['action_file'], \
@@ -295,9 +326,9 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         self.obs_latency =  obs_dic["latency"]  #( obs_dic["latency"] - self.obs_space_scale["latency"][0] ) / self.obs_space_scale["latency"][1]
         for c in self.observaton_str_mapping_dict:
             logger.info(obs_dic[c])
-            logger.info(self.observaton_str_mapping_dict[c])
+            # logger.info(self.observaton_str_mapping_dict[c])
             obs_dic[c] = self.observaton_str_mapping_dict[c][obs_dic[c]]
-        # 0-1
+        # 把数据归一化，范围， 0-1
         for idx, n in enumerate(self.space_name):
             # print(obs_dic)
             ob_data.append( obs_dic[n] / self.obs_space_scale[n] if  not isinstance(self.obs_space_scale[n],  tuple) else (obs_dic[n] - self.obs_space_scale[n][0] ) / ( self.obs_space_scale[n][-1] - self.obs_space_scale[n][0]))
@@ -343,15 +374,26 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
             assert False, "BFT is disabled and cft agent mask should be True."
         
         action_updated_config = {}
-        if self.agent_mask['bft_alg']:
-            action_updated_config['algorithm'] = action_explain['bft_alg']
-            if "bft_pol" in action_explain:
-                action_updated_config['policy'] = action_explain['bft_pol']
-        else:
-            action_updated_config['algorithm'] = action_explain['cft_alg']
-            if "cft_pol" in action_explain:
-                action_updated_config['policy'] = action_explain['cft_pol']
+        # if self.agent_mask['bft_alg']:
+        #     action_updated_config['algorithm'] = action_explain['bft_alg']
+        #     if "bft_pol" in action_explain:
+        #         action_updated_config['policy'] = action_explain['bft_pol']
+        # else:
+        #     action_updated_config['algorithm'] = action_explain['cft_alg']
+        #     if "cft_pol" in action_explain:
+        #         action_updated_config['policy'] = action_explain['cft_pol']
 
+        if self.mutation_env["env_bft"]:
+            # We're in BFT mode, so only use BFT algorithm regardless of agent mask
+            if 'bft_alg' in action_explain:
+                action_updated_config['algorithm'] = action_explain['bft_alg']
+            else:
+                logger.warning(f"BFT mode active but no bft_alg action found.")
+        else:
+            if 'cft_alg' in action_explain:
+                action_updated_config['algorithm'] = action_explain['cft_alg']
+            else:
+                logger.warning(f"CFT mode active but no bft_alg action found.")
         
         for a in self.agents:
             if a not in ['bft_alg', 'cft_alg', 'cft_pol', 'bft_pol']:
@@ -360,15 +402,23 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
 
         logger.info(f"applied action config {action_updated_config}, agent mask {self.agent_mask}")
         logger.info(f"Environemt Change {self.step_count} {self.mutation_env}")
-        update_and_run_config(self.config['action_file'], self.config['action_file'], \
+        _, run_success = update_and_run_config(self.config['action_file'], self.config['action_file'], \
                               action_updated_config, os.path.join(self.config['project_dir'], "history_configs"), \
                               self.args.project_dir, self.config["action_space"]["discrete"], mutation_env=self.mutation_env,
                                threshold_time= self.config['run_timeout'], max_retries= self.config['run_trial_num'])
-        try:
-            isSuccess, parsed_performance, raw_performace = check_if_run_success(self.config['current_performance_file'])
-            logger.info(f"Run {isSuccess}, Parsed {parsed_performance}, Raw Performance {raw_performace}")
-        except Exception as e:
-            logger.error(f"Run Config Failed with error: {e}")
+        if run_success:
+            # Only check the performance file if the run was successful
+            logger.info("===== Run success and check performance file")
+            try:
+                isSuccess, parsed_performance, raw_performace = check_if_run_success(self.config['current_performance_file'], os.path.join(self.config["history_performance_dir"], f"performance_{self.action_count}.json"))
+                # if current performance_file not changed, return false
+                logger.info(f"===== Run {isSuccess}, Parsed {parsed_performance}, Raw Performance {raw_performace}")
+            except Exception as e:
+                logger.error(f"Run Config Failed with error: {e}")
+                isSuccess = False
+        else:
+            # If the run wasn't successful, don't try to read performance data
+            logger.warning("!!! Run did not complete successfully, not checking performance data.")
             isSuccess = False
         return isSuccess
 
@@ -380,14 +430,31 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
                 logger.info("Computing TPS reward")
                 delta_best = self.obs_TPS - max(self.performance_history["TPS"])
                 delta_pre = self.obs_TPS - self.performance_history["TPS"][-1]
-                reward = call_reward_function(self.reward_fn, self.obs_TPS, self.performance_history, k="TPS",\
-                                                discount=self.reward_discount, max_top=self.reward_top_num)
+                reward = call_reward_function(
+                    self.reward_fn, 
+                    self.obs_TPS, 
+                    self.performance_history, 
+                    k="TPS",
+                    discount=self.reward_discount, 
+                    max_top=self.reward_top_num,
+                    step_count=self.step_count,
+                    is_bft_mode=self.mutation_env.get("env_bft", False),
+                    total_steps=self.config.get('total_steps', 1500)
+                )
             if self.reward_model=='latency':
                 logger.info("Computing latency reward")
                 delta_best = self.obs_latency - max(self.performance_history["latency"])
                 delta_pre = self.obs_latency - self.performance_history["latency"][-1]
-                reward = -call_reward_function(self.reward_fn, self.obs_latency, self.performance_history, k="latency",\
-                                                discount=self.reward_discount, max_top=self.reward_top_num)
+                reward = -call_reward_function(
+                    self.reward_fn, self.obs_latency, 
+                    self.performance_history, 
+                    k="latency",
+                    discount=self.reward_discount, 
+                    max_top=self.reward_top_num,
+                    step_count=self.step_count,
+                    is_bft_mode=self.mutation_env.get("env_bft", False),
+                    total_steps=self.config.get('total_steps', 1500)
+                )
             
             if reward < 0:
                 reward = 0
