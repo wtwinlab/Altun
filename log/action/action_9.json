@@ -1,0 +1,13 @@
+{
+    "bft": false,
+    "algorithm": "pbft",
+    "nodesize": 8,
+    "clients": 4,
+    "concurrency": 1000,
+    "ratelimit": 1000,
+    "requests": 1000,
+    "writeratio": 0.8,
+    "batchsize": 1,
+    "payloadsize": 256,
+    "distribution": "uniform"
+}

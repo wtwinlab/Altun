@@ -1,0 +1,11 @@
+[performance tuning  on different rate limit]
+
+1.Changing Condition
+RateLimit: 10 100 1000 10000
+
+2.Output
+algorithm
+
+3.Observing
+tps
+latency
