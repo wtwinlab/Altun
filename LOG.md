@@ -20,3 +20,8 @@ go mod tidy
 4.proxy
 export GOPROXY=https://goproxy.io,direct
 go get google.golang.org/grpc
+
+5.
+./exp-sys-bft.sh > log/run1.log 2>&1 &
+./exp-sys-cft.sh > log/run1.log 2>&1 &
+
