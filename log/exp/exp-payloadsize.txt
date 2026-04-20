@@ -1,3 +1,0 @@
-id,TPS,latency,consensus,payloadsize
-id,TPS,latency,consensus,payloadsize
-0,924.9043860121108,807.2498898305086,mirbft,64
