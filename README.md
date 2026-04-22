@@ -3,13 +3,14 @@
 
 ## Architecture
 
-![Altun Architecture](figures/architecture_v5.png)
+<p align="center">                                                                                                                                                                                <img src="figures/architecture_v5.png" width="85%">                                                                                                                            
+</p> 
 
 ## Repository Structure
 
 The repository **Altun_RL** contains the RL-based protocol selector. The **Altun-core** repository contains consensus protocol implementations, the forensic auditor, and the virtual-log reconfiguration plane.
 
-# Altun-Core and Altun-RL
+## Altun-Core and Altun-RL
 ### Altun-core (Go)
 
 Consensus protocol implementations behind a uniform gRPC `ConsensusInstance` API (propose, seal, checkpoint, restore). Currently integrates eight protocols spanning CFT and BFT families:
