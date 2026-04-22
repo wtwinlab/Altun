@@ -1,8 +1,8 @@
 package vpaxos
 
 import (
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // entry in log

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Socket integrates all networking interface and fault injections

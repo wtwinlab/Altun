@@ -1,8 +1,8 @@
 package wpaxos
 
 import (
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/cft/paxos"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/consensus/cft/paxos"
 )
 
 type kpaxos struct {

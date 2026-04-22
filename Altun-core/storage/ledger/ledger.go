@@ -7,7 +7,7 @@ import (
 	"hash/fnv"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/wtwinlab/Altun/layers/storage/ledger/merkletree"
+	"github.com/wtwinlab/altun/storage/ledger/merkletree"
 )
 
 type LogLedger struct {

@@ -994,23 +994,39 @@ def random_consensus_mutation(step_count, condition_duration=200, random_factor=
 
 def adaptive_consensus_mutation(step_count, total_steps=1500):
     # Divide training into segments for each condition set, integer division
-    
+
     # condition_index = min(step_count // segment_length, len(CONDITION_SETS) - 1)
     # Cycle through condition sets deterministically
     # condition_duration = total_steps // len(CONDITION_SETS)
-    condition_duration = 50
+    condition_duration = 300
     condition_index = (step_count // condition_duration) % len(CONDITION_SETS)
-        
+
     # Get the selected condition set
     selected_conditions = CONDITION_SETS[condition_index]
     logger.info(f"Step {step_count} Total {total_steps}: Progressive mutation to condition set {condition_index + 1}")
-    
+
     # Create the mutation dictionary with the env_ prefix for each parameter
     mutation_env = {f"env_{k}": v for k, v in selected_conditions.items()}
-    
+
     # Log the conditions
     logger.info(f"Mutation environment: {mutation_env}")
-    
+
+    return mutation_env
+
+
+def adaptive_consensus_fast_mutation(step_count):
+    """Same CONDITION_SETS cycle as adaptive_consensus_mutation but with
+    condition_duration=20 so 120 steps covers all 5 sets twice plus
+    a partial third cycle. Used by Exp 2A v2 to trigger cross-family
+    switches within a single run.
+
+    5 sets × 20 steps = 100 steps per cycle → 120 steps = 1.2 cycles
+    → at least 2 bft-flag transitions (Set 3→4 and Set 5→1).
+    """
+    condition_duration = 20
+    condition_index = (step_count // condition_duration) % len(CONDITION_SETS)
+    selected_conditions = CONDITION_SETS[condition_index]
+    mutation_env = {f"env_{k}": v for k, v in selected_conditions.items()}
     return mutation_env
 
 def fault_aware_mutation(step_count, fault_detection_file=None, condition_duration=300):
@@ -1100,6 +1116,215 @@ def workload_specific_mutation(step_count, condition_duration=300):
     return mutation_env
 
 # Function to call reward function by name
+# ── Experiment mutations (new) ──────────────────────────────────────────────
+
+# Condition sets from Table 2 (tab:conditions) in the paper
+# (nodesize, clients, ratelimit, payloadsize, writeratio, bft)
+_BLOCK_SCHEDULE = [
+    (4,  4,  5_000,   128,  0.9, False),  # C1 low-load
+    (4,  16, 100_000, 1024, 0.9, False),  # C2 high-load
+    (8,  16, 10_000,  256,  0.9, False),  # C5 WAN-like
+    (4,  16, 100_000, 1024, 0.9, False),  # C2 high-load (return)
+    (4,  8,  10_000,  256,  0.9, True),   # C6 safety-alert (bft=True)
+    (4,  4,  5_000,   128,  0.9, False),  # C1 low-load (return)
+]
+
+def block_schedule_mutation(step, steps_per_block=8):
+    """
+    Drive the selector through C1→C2→C5→C2→C6→C1, repeated twice (12 blocks).
+    Used by Experiment 1 (Selector Justification, Table 5) — v1.
+    steps_per_block: steps per block (each step ~45s, so 8 steps ≈ 6 min/block).
+    """
+    total = len(_BLOCK_SCHEDULE)
+    ns, cl, rl, ps, wr, bft = _BLOCK_SCHEDULE[(step // steps_per_block) % total]
+    return {
+        "env_nodesize":    ns,
+        "env_clients":     cl,
+        "env_ratelimit":   rl,
+        "env_payloadsize": ps,
+        "env_writeratio":  wr,
+        "env_bft":         bft,
+        "env_concurrency": 100,
+        "env_batchsize":   1,
+    }
+
+
+def training_set2_fixed_mutation(step):
+    """
+    Fixed Set 2 conditions matching the adapt_09-15 training window
+    [300, 600): the same env parameters DDPG saw between training
+    checkpoints 400 and 600. Used for Experiment 1 v2 — DDPG column is
+    extracted from training log [500, 596), baselines run live on these
+    exact same parameters so the comparison is apples-to-apples on
+    workload params (only cluster drift remains).
+
+    All 8 env_* fields are fixed; only the selector's protocol choice
+    varies step to step.
+    """
+    return {
+        "env_nodesize":    16,
+        "env_clients":     32,
+        "env_writeratio":  0.5,
+        "env_concurrency": 500,
+        "env_ratelimit":   1000,
+        "env_batchsize":   1000,
+        "env_payloadsize": 256,
+        "env_bft":         False,
+    }
+
+
+_DRIFT_BENCHMARK_BLOCKS = [
+    # D1: Normal daily operation (vpaxos optimal — 58k, +55% over paxos 38k)
+    # Practical: standard workload, moderate clients, moderate rate
+    {"env_nodesize":4,  "env_clients":8,  "env_writeratio":0.5,
+     "env_concurrency":100, "env_ratelimit":10000, "env_batchsize":1,
+     "env_payloadsize":128, "env_bft":False},
+    # D2: Traffic spike (paxos optimal — 62k; vpaxos CRASHES at this load)
+    # Practical: flash sale / viral event → clients 4× + concurrency 5× + rate 10×
+    {"env_nodesize":4,  "env_clients":32, "env_writeratio":0.5,
+     "env_concurrency":500, "env_ratelimit":100000, "env_batchsize":1,
+     "env_payloadsize":128, "env_bft":False},
+    # D3: Scaled-out spike (wpaxos optimal — 16k; vpaxos still crashes at ns=8)
+    # Practical: operator scaled cluster 4→8 nodes, spike persists
+    {"env_nodesize":8,  "env_clients":32, "env_writeratio":0.5,
+     "env_concurrency":500, "env_ratelimit":100000, "env_batchsize":1,
+     "env_payloadsize":128, "env_bft":False},
+    # D4: BFT security alert (chs/fhs optimal — 72k; CFT→BFT family switch)
+    # Practical: Byzantine fault detected, switch to BFT consensus
+    {"env_nodesize":4,  "env_clients":16, "env_writeratio":0.5,
+     "env_concurrency":500, "env_ratelimit":10000, "env_batchsize":500,
+     "env_payloadsize":256, "env_bft":True},
+    # D5: Alert cleared + scaled cluster (vpaxos optimal — 28k at ns=16)
+    # Practical: back to CFT after security resolved, cluster stays large
+    {"env_nodesize":16, "env_clients":8,  "env_writeratio":0.5,
+     "env_concurrency":100, "env_ratelimit":10000, "env_batchsize":1,
+     "env_payloadsize":128, "env_bft":False},
+    # D6: Second spike on small cluster (paxos optimal — repeats D2 pattern)
+    # Practical: another traffic spike, proves DDPG can re-adapt not just once
+    {"env_nodesize":4,  "env_clients":32, "env_writeratio":0.5,
+     "env_concurrency":500, "env_ratelimit":100000, "env_batchsize":1,
+     "env_payloadsize":128, "env_bft":False},
+]
+
+
+def drift_benchmark_mutation(step_count, steps_per_block=50):
+    """Drift benchmark workload for Figure 5 task-adaptation experiment.
+
+    6 blocks × 50 steps = 300 steps. Scenario C design (Plan C):
+      D1 (vpaxos, normal) → D2 (paxos, spike) → D3 (wpaxos, scaled spike)
+      → D4 (chs/fhs, BFT alert) → D5 (vpaxos, scaled CFT) → D6 (paxos, 2nd spike)
+
+    4 distinct optimal protocols across 6 blocks. 1 CFT→BFT + 1 BFT→CFT
+    family switch. 2 spike events prove repeatability.
+
+    Validated by config-space sweep (324 runs, exp_logs/fig5_sweep_report.md)
+    and pre-flight check (_preflight_drift_benchmark.sh).
+    """
+    block_idx = (step_count // steps_per_block) % len(_DRIFT_BENCHMARK_BLOCKS)
+    return dict(_DRIFT_BENCHMARK_BLOCKS[block_idx])
+
+
+def drift_benchmark_mutation_b20(step_count):
+    return drift_benchmark_mutation(step_count, steps_per_block=20)
+
+
+def drift_benchmark_mutation_b100(step_count):
+    return drift_benchmark_mutation(step_count, steps_per_block=100)
+
+
+def drift_benchmark_mutation_b150(step_count):
+    return drift_benchmark_mutation(step_count, steps_per_block=150)
+
+
+def alternating_regime_mutation(step, regime_steps=20):
+    """
+    Alternate between two regimes to test thrashing/hysteresis (Table 7).
+    Regime A: VPaxos/Paxos-like winner (low concurrency, CFT mode).
+    Regime B: FastHotStuff-like winner (high concurrency, BFT mode).
+    """
+    if (step // regime_steps) % 2 == 0:
+        # Regime A
+        return {
+            "env_nodesize":    4,
+            "env_clients":     4,
+            "env_concurrency": 100,
+            "env_ratelimit":   100_000,
+            "env_payloadsize": 64,
+            "env_writeratio":  0.9,
+            "env_bft":         False,
+            "env_batchsize":   1,
+        }
+    else:
+        # Regime B
+        return {
+            "env_nodesize":    4,
+            "env_clients":     16,
+            "env_concurrency": 50,
+            "env_ratelimit":   50_000,
+            "env_payloadsize": 256,
+            "env_writeratio":  0.5,
+            "env_bft":         True,
+            "env_batchsize":   10,
+        }
+
+# ── Exp 2A coverage mutation (redesign, 2026-04) ────────────────────────────
+# Designed-drift workload that exercises all four family transitions
+# (CFT→CFT, CFT→BFT, BFT→CFT, BFT→BFT) by construction. Each of the eight
+# phases below is a deliberate workload step; every phase boundary is a
+# drift event the agent can (and should) react to. 4 steps per phase ×
+# 8 phases × 3 repeats = 96 steps. See
+# exp_logs/exp2a_workload_drift_analysis.md §6 P4 for the rationale.
+_SWITCH_COVERAGE_SCENARIOS = [
+    # --- Scenario A: CFT→CFT (small read-heavy → large write-heavy) ---
+    {"env_nodesize": 4,  "env_clients": 4,  "env_concurrency": 50,
+     "env_ratelimit": 5_000,   "env_payloadsize": 128, "env_writeratio": 0.1,
+     "env_bft": False, "env_batchsize": 1},   # A pre
+    {"env_nodesize": 4,  "env_clients": 16, "env_concurrency": 200,
+     "env_ratelimit": 100_000, "env_payloadsize": 1024,"env_writeratio": 0.9,
+     "env_bft": False, "env_batchsize": 1},   # A post
+    # --- Scenario B: CFT→BFT (large CFT → safety alert, env_bft flips) ---
+    {"env_nodesize": 4,  "env_clients": 16, "env_concurrency": 200,
+     "env_ratelimit": 100_000, "env_payloadsize": 512, "env_writeratio": 0.5,
+     "env_bft": False, "env_batchsize": 1},   # B pre
+    {"env_nodesize": 4,  "env_clients": 8,  "env_concurrency": 50,
+     "env_ratelimit": 10_000,  "env_payloadsize": 256, "env_writeratio": 0.5,
+     "env_bft": True,  "env_batchsize": 1},   # B post
+    # --- Scenario C: BFT→CFT (post-alert → steady CFT, env_bft flips back) ---
+    {"env_nodesize": 4,  "env_clients": 8,  "env_concurrency": 50,
+     "env_ratelimit": 10_000,  "env_payloadsize": 256, "env_writeratio": 0.5,
+     "env_bft": True,  "env_batchsize": 1},   # C pre
+    {"env_nodesize": 4,  "env_clients": 4,  "env_concurrency": 50,
+     "env_ratelimit": 5_000,   "env_payloadsize": 128, "env_writeratio": 0.9,
+     "env_bft": False, "env_batchsize": 1},   # C post
+    # --- Scenario D: BFT→BFT (low-throughput BFT → high-throughput BFT) ---
+    {"env_nodesize": 4,  "env_clients": 4,  "env_concurrency": 50,
+     "env_ratelimit": 1_000,   "env_payloadsize": 128, "env_writeratio": 0.5,
+     "env_bft": True,  "env_batchsize": 1},   # D pre
+    {"env_nodesize": 4,  "env_clients": 16, "env_concurrency": 200,
+     "env_ratelimit": 10_000,  "env_payloadsize": 256, "env_writeratio": 0.5,
+     "env_bft": True,  "env_batchsize": 1},   # D post
+]
+
+def switch_coverage_mutation(step, steps_per_phase=4):
+    """
+    Designed-drift workload for Exp 2A's switch coverage sub-experiment.
+    Cycles through 8 workload phases in a fixed order; every phase
+    boundary is a known drift event that should cause the agent to
+    reconsider its protocol choice. Over 96 steps, each of the 4 family
+    transition types (A=CFT→CFT, B=CFT→BFT, C=BFT→CFT, D=BFT→BFT) is
+    exercised 3 times, giving statistical power for Table 6.
+
+    Not a replacement for block_schedule_mutation — that one stays
+    bit-identical for Exp 2A-natural. This is a new, additive workload
+    for the coverage sub-experiment, per exp_logs/
+    exp2a_workload_drift_analysis.md §6 P4.
+    """
+    phase_idx = (step // steps_per_phase) % len(_SWITCH_COVERAGE_SCENARIOS)
+    return dict(_SWITCH_COVERAGE_SCENARIOS[phase_idx])
+
+
+# ── End experiment mutations ─────────────────────────────────────────────────
+
 def call_env_mutate_function(func_name, step_count, **kwargs):
     try:
         # Get the function from globals() and call it with the provided arguments

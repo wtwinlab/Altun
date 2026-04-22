@@ -5,8 +5,8 @@ import (
 	"flag"
 	"os"
 
-	conf "github.com/wtwinlab/Altun/config"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	conf "github.com/wtwinlab/altun/config"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 var configFile = flag.String("config", "config.json", "Configuration file for cft replica. Defaults to config.json.")

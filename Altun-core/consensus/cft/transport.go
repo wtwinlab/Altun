@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 var scheme = flag.String("transport", "tcp", "transport scheme (tcp, udp, chan), default tcp")

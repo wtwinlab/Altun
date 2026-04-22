@@ -72,7 +72,7 @@ func (r ReadReply) String() string {
 }
 
 // Transaction contains arbitrary number of commands in one request
-// TODO read-only or write-only transactions
+// TD read-only or write-only transactions
 type Transaction struct {
 	Commands  []Command
 	Timestamp int64

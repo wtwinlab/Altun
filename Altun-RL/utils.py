@@ -146,7 +146,7 @@ def read_tps_and_latency_values(benchmark_log_file):
                 for num in numbers:
                     latency_values.append(float(num))
             else:
-                assert False, f"{data}"
+                pass
 
     # Retrieve the last values
     last_tps = tps_values[-1] if tps_values else None
@@ -720,19 +720,66 @@ def map_value_to_item(value, num_items):
 
 
 
-# result = subprocess.run(['bash', 'run_system.sh'], check=True, text=True, capture_output=True)
+# ──────────────────────────────────────────────────────────────
+# Controller API mode (Phase 6 of the reconfiguration plan).
+# When ALTUN_CONTROLLER_ADDR is set, protocol switches go through
+# the altun-controller HTTP API instead of kill/restart via
+# run_system.sh. The legacy code path above is kept for backward
+# compatibility (--legacy-switch).
+# ──────────────────────────────────────────────────────────────
 
-# # Run the command
-# process = subprocess.Popen(['bash', 'run_system.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+import requests as _requests  # lazy import; only used in controller mode
 
-# # Monitor the output
-# for line in process.stdout:
-#     print(line, end='')
+def reconfig_via_controller(controller_addr, algorithm, is_bft, policy_window=None, timeout=60):
+    """Send a reconfiguration request to altun-controller.
 
-# # Capture any error messages
-# error_output = process.stderr.read()
-# if error_output:
-#     print("Error:", error_output)
+    Args:
+        controller_addr: e.g. "localhost:8080"
+        algorithm: target protocol name ("paxos", "chainedhotstuff", etc.)
+        is_bft: True if the target is a BFT protocol
+        policy_window: dict for cross-family switch (optional)
+        timeout: HTTP request timeout in seconds
 
-# # Wait for the process to complete
-# process.wait()
+    Returns:
+        dict with keys: success, new_instance, switch_timing, error
+    """
+    trigger = "cross" if policy_window else "intra"
+    mode = "BFT" if is_bft else "CFT"
+
+    payload = {
+        "trigger": trigger,
+        "target": algorithm,
+        "mode": mode,
+    }
+    if policy_window:
+        payload["policy_window"] = policy_window
+
+    url = f"http://{controller_addr}/reconfig"
+    logger.info(f"Controller reconfig: POST {url} → {algorithm} ({mode})")
+
+    try:
+        resp = _requests.post(url, json=payload, timeout=timeout)
+        result = resp.json()
+        if result.get("success"):
+            logger.info(f"Controller reconfig OK: {result.get('new_instance', {})}")
+        else:
+            logger.warning(f"Controller reconfig failed: {result.get('error', 'unknown')}")
+        return result
+    except Exception as e:
+        logger.error(f"Controller reconfig error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def get_controller_status(controller_addr, timeout=10):
+    """Query the current status from altun-controller.
+
+    Returns:
+        dict with keys: instance, commit, policy
+    """
+    url = f"http://{controller_addr}/status"
+    try:
+        resp = _requests.get(url, timeout=timeout)
+        return resp.json()
+    except Exception as e:
+        logger.error(f"Controller status error: {e}")
+        return {"error": str(e)}

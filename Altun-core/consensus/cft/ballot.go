@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Ballot is ballot number type combines 32 bits of natual number and 32 bits of node id into uint64

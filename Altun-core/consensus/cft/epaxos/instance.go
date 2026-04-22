@@ -1,6 +1,6 @@
 package epaxos
 
-import "github.com/wtwinlab/Altun/layers/consensus/cft"
+import "github.com/wtwinlab/altun/consensus/cft"
 
 type status int8
 

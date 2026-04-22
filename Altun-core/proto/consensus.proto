@@ -1,0 +1,80 @@
+syntax = "proto3";
+package altun;
+option go_package = "github.com/wtwinlab/altun/proto/altunpb";
+
+// ConsensusInstance is the unified gRPC interface for managing consensus
+// protocol instances. Both CFT (in-process) and BFT (subprocess) adapters
+// implement this service, giving the controller a single control plane.
+service ConsensusInstance {
+  // Propose submits a key-value command; blocks until committed.
+  rpc Propose(ProposeRequest) returns (ProposeResponse);
+
+  // LastCommitted returns the highest committed log index and state hash.
+  rpc LastCommitted(Empty) returns (CommitStatus);
+
+  // Checkpoint takes a consistent state snapshot.
+  rpc Checkpoint(Empty) returns (CheckpointToken);
+
+  // Seal stops accepting new proposals, drains in-flight, returns final index.
+  rpc Seal(SealRequest) returns (SealResponse);
+
+  // Restore loads application state from a checkpoint token.
+  rpc Restore(CheckpointToken) returns (RestoreResponse);
+
+  // IsSealed returns whether this instance has been sealed.
+  rpc IsSealed(Empty) returns (SealedStatus);
+
+  // GetInfo returns instance metadata (id, mode, protocol, address).
+  rpc GetInfo(Empty) returns (InstanceInfo);
+}
+
+message ProposeRequest {
+  int32 key = 1;
+  bytes value = 2;
+  string client_id = 3;
+  int32 command_id = 4;
+}
+
+message ProposeResponse {
+  int64 index = 1;
+  bytes value = 2;       // previous value of the key
+  string error = 3;      // empty on success
+}
+
+message CommitStatus {
+  int64 index = 1;
+  bytes state_hash = 2;
+}
+
+message CheckpointToken {
+  int64 instance_id = 1;
+  int64 index = 2;
+  bytes state_hash = 3;
+  bytes state = 4;       // JSON-serialized KV snapshot
+}
+
+message SealRequest {
+  int64 timeout_ms = 1;  // max wait for in-flight drain
+}
+
+message SealResponse {
+  int64 final_index = 1;
+  string error = 2;
+}
+
+message RestoreResponse {
+  string error = 1;
+}
+
+message SealedStatus {
+  bool sealed = 1;
+}
+
+message InstanceInfo {
+  int64 id = 1;
+  string mode = 2;       // "CFT" or "BFT"
+  string protocol = 3;   // "paxos", "chainedhotstuff", etc.
+  string address = 4;    // gRPC listen address
+}
+
+message Empty {}

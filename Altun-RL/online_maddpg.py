@@ -70,7 +70,17 @@ def get_args():
                       help="Window size for adaptive reward scaling")
     parser.add_argument("--total_steps", type=int, default=5000,
                       help="Total expected steps for progressive reward shaping")
-    
+    # Hysteresis parameters for switch cost / thrashing experiments
+    parser.add_argument("--cooldown_steps", type=int, default=0,
+                      help="Min steps between protocol switches (0=disabled)")
+    parser.add_argument("--switch_margin", type=float, default=0.0,
+                      help="Min relative TPS improvement to allow a switch (0=disabled)")
+    # Controller mode: use altun-controller API instead of kill/restart
+    parser.add_argument("--controller_addr", type=str, default=None,
+                      help="altun-controller address (e.g. localhost:8080). "
+                           "If set, protocol switches go through the controller "
+                           "gRPC/HTTP API instead of run_system.sh.")
+
     return parser.parse_args()
 
 
@@ -84,7 +94,7 @@ if __name__ == "__main__":
     current_time = time.strftime("%Y-%m-%d_%H-%M-%S")
     # create a log file name with f"{args.saved_folder}/rl_maddpg_{current_time}.log"
     logger.add(f"{args.saved_folder}/rl_maddpg_{current_time}.log")
-    logger.info(f"===== Altun MADDPG, Training {not args.inference} =====")
+    logger.info(f"===== Altun MADDPG, Training {not args.inference} {args.hidden_sizes}=====")
     # save Agent weights to args.saved_folder/"models"
     saved_model_path = os.path.join(args.saved_folder, "models")
     os.makedirs(saved_model_path, exist_ok=True)

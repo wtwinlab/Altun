@@ -3,8 +3,8 @@ package vpaxos
 import (
 	"flag"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // master node id
@@ -115,6 +115,22 @@ func (r *Replica) handleInfo(m Info) {
 		}
 		r.pending[m.Key] = make([]cft.Request, 0)
 	}
+}
+
+// LastCommittedSlot returns the highest executed slot in the internal paxos log.
+func (r *Replica) LastCommittedSlot() int {
+	return r.paxos.execute - 1
+}
+
+// AllSlotsCommitted returns true if all allocated slots are committed.
+func (r *Replica) AllSlotsCommitted() bool {
+	for i := r.paxos.execute; i <= r.paxos.slot; i++ {
+		e, ok := r.paxos.log[i]
+		if !ok || !e.commit {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Replica) handleP1a(m P1a) {

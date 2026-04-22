@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Max of two int

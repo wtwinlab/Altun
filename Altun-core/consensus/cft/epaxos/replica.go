@@ -3,10 +3,10 @@ package epaxos
 import (
 	"flag"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib"
+	"github.com/wtwinlab/altun/lib"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 var replyWhenCommit = flag.Bool("ReplyWhenCommit", false, "Reply to client when request is committed, instead of executed")
@@ -198,7 +198,7 @@ func (r *Replica) handlePreAcceptReply(m PreAcceptReply) {
 	}
 
 	if m.Ballot > i.ballot {
-		// TODO merge or not
+		// TD merge or not
 		return
 	}
 
@@ -299,7 +299,7 @@ func (r *Replica) handleAcceptReply(m AcceptReply) {
 
 	if i.ballot < m.Ballot {
 		i.ballot = m.Ballot
-		// TODO
+		// TD
 		return
 	}
 
@@ -351,6 +351,27 @@ func (r *Replica) handleCommit(m Commit) {
 		i.request = nil
 	}
 	r.updateCommit(m.Replica)
+}
+
+// LastCommittedSlot returns the highest globally committed slot across all replicas.
+func (r *Replica) LastCommittedSlot() int {
+	maxCommit := -1
+	for _, c := range r.committed {
+		if c > maxCommit {
+			maxCommit = c
+		}
+	}
+	return maxCommit
+}
+
+// AllSlotsCommitted returns true if all allocated slots are committed.
+func (r *Replica) AllSlotsCommitted() bool {
+	for id, s := range r.slot {
+		if r.committed[id] < s {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Replica) execute() {

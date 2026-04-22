@@ -1,1 +1,0 @@
-A fork of KV store interface tm-db(https://github.com/tendermint/tm-db).

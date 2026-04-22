@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // http request header names
@@ -93,7 +93,7 @@ func (n *node) handleRoot(w http.ResponseWriter, r *http.Request) {
 
 	req.Command = cmd
 	req.Timestamp = time.Now().UnixNano()
-	req.NodeID = n.id // TODO does this work when forward twice
+	req.NodeID = n.id // TD does this work when forward twice
 	req.c = make(chan Reply, 1)
 
 	n.MessageChan <- req

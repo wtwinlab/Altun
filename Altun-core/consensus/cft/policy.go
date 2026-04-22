@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Policy defines a trigger for data access patterns, that can be used in data migration protocols

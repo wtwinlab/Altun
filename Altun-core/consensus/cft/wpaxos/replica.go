@@ -3,8 +3,8 @@ package wpaxos
 import (
 	"flag"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 var adaptive = flag.Bool("adaptive", true, "stable leader, if true paxos forward request to current leader")
@@ -66,7 +66,7 @@ func (r *Replica) handleRequest(m cft.Request) {
 }
 
 func (r *Replica) handleTransaction(m cft.Transaction) {
-	// TODO
+	// TD
 }
 
 func (r *Replica) handlePrepare(m Prepare) {
@@ -105,6 +105,27 @@ func (r *Replica) handleLeaderChange(m LeaderChange) {
 		// log.Debugf("Replica %s : change leader of key %d\n", r.ID(), m.Key)
 		p.P1a()
 	}
+}
+
+// LastCommittedSlot returns the max committed slot across all per-key paxos instances.
+func (r *Replica) LastCommittedSlot() int {
+	maxSlot := -1
+	for _, p := range r.cft {
+		if s := p.LastCommittedSlot(); s > maxSlot {
+			maxSlot = s
+		}
+	}
+	return maxSlot
+}
+
+// AllSlotsCommitted returns true if every per-key paxos has no in-flight slots.
+func (r *Replica) AllSlotsCommitted() bool {
+	for _, p := range r.cft {
+		if !p.AllSlotsCommitted() {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Replica) keys() int {

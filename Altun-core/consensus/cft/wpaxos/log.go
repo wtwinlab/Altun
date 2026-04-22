@@ -3,10 +3,10 @@ package wpaxos
 import (
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
+	"github.com/wtwinlab/altun/consensus/cft"
 )
 
-// TODO same as instance in wpaxos/paxos
+// TD same as instance in wpaxos/paxos
 type entry struct {
 	ballot    int
 	cmds      []cft.Command

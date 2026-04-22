@@ -8,7 +8,7 @@ import (
 )
 
 // Key type of the key-value database
-// TODO key should be general too
+// TD key should be general too
 type Key int
 
 // Value type of key-value database
@@ -49,12 +49,18 @@ func (c Command) String() string {
 }
 
 // Database defines a database interface
-// TODO replace with more general StateMachine interface
+// TD replace with more general StateMachine interface
 type Database interface {
 	Execute(Command) Value
 	History(Key) []Value
 	Get(Key) Value
 	Put(Key, Value)
+
+	// Snapshot returns a serializable copy of the entire KV state.
+	Snapshot() map[Key]Value
+
+	// LoadSnapshot replaces the KV state from a previously taken snapshot.
+	LoadSnapshot(snap map[Key]Value)
 }
 
 // Database implements a multi-version key-value datastore as the StateMachine
@@ -159,6 +165,29 @@ func (d *database) String() string {
 	defer d.RUnlock()
 	b, _ := json.Marshal(d.data)
 	return string(b)
+}
+
+// Snapshot returns a shallow copy of the current KV state.
+func (d *database) Snapshot() map[Key]Value {
+	d.RLock()
+	defer d.RUnlock()
+	snap := make(map[Key]Value, len(d.data))
+	for k, v := range d.data {
+		snap[k] = v
+	}
+	return snap
+}
+
+// LoadSnapshot replaces all KV state with the given snapshot.
+func (d *database) LoadSnapshot(snap map[Key]Value) {
+	d.Lock()
+	defer d.Unlock()
+	d.data = make(map[Key]Value, len(snap))
+	for k, v := range snap {
+		d.data[k] = v
+	}
+	d.history = make(map[Key][]Value)
+	d.version = 0
 }
 
 // Conflict checks if two commands are conflicting as reorder them will end in different states

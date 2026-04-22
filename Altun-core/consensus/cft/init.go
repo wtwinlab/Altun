@@ -4,7 +4,7 @@ import (
 	"flag"
 	"net/http"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Init setup cft package

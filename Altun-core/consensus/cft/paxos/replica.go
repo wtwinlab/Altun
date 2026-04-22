@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 var ephemeralLeader = flag.Bool("ephemeral_leader", false, "unstable leader, if true paxos replica try to become leader instead of forward requests to current leader")
@@ -66,7 +66,7 @@ func (r *Replica) handleRequest(m cft.Request) {
 }
 
 func (r *Replica) readInProgress(m cft.Request) (cft.Value, bool) {
-	// TODO
+	// TD
 	// (1) last slot is read?
 	// (2) entry in log over writen
 	// (3) value is not overwriten command

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Node is the primary access point for every replica
@@ -19,6 +19,10 @@ type Node interface {
 	Retry(r Request)
 	Forward(id ID, r Request)
 	Register(m interface{}, f interface{})
+
+	// InjectRequest pushes a request into the message channel and returns
+	// a reply channel. Used by the gRPC adapter to propose commands.
+	InjectRequest(r Request) <-chan Reply
 }
 
 // node implements Node interface
@@ -162,6 +166,14 @@ func (n *node) Forward(id ID, m Request) {
 	}
 }
 */
+
+// InjectRequest creates a reply channel, pushes the request into MessageChan,
+// and returns the channel so the caller can block until the reply arrives.
+func (n *node) InjectRequest(r Request) <-chan Reply {
+	r.c = make(chan Reply, 1)
+	n.MessageChan <- r
+	return r.c
+}
 
 func (n *node) Forward(id ID, m Request) {
 	log.Debugf("Node %v forwarding %v to %s", n.ID(), m, id)

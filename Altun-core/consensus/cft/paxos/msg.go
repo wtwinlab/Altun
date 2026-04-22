@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
+	"github.com/wtwinlab/altun/consensus/cft"
 )
 
 func init() {
@@ -37,7 +37,7 @@ func (cb CommandBallot) String() string {
 // P1b promise message
 type P1b struct {
 	Ballot cft.Ballot
-	ID     cft.ID                // from node id
+	ID     cft.ID               // from node id
 	Log    map[int]CommandBallot // uncommitted logs
 }
 

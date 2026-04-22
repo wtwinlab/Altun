@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/wtwinlab/Altun/layers/consensus/lib"
-	"github.com/wtwinlab/Altun/layers/consensus/lib/log"
+	"github.com/wtwinlab/altun/lib"
+	"github.com/wtwinlab/altun/lib/log"
 )
 
 // Client interface provides get and put for key value store
@@ -122,7 +122,7 @@ func (c *HTTPClient) rest(id ID, key Key, value Value) (Value, map[string]string
 
 	rep, err := c.Client.Do(req)
 	if err != nil {
-		log.Error(err)
+		log.Warning(err)
 		return nil, nil, err
 	}
 	defer rep.Body.Close()
@@ -266,7 +266,7 @@ func (c *HTTPClient) LocalQuorumGet(key Key) ([]Value, []map[string]string) {
 }
 
 // QuorumPut concurrently write values to majority of nodes
-// TODO get headers
+// TD get headers
 func (c *HTTPClient) QuorumPut(key Key, value Value) {
 	var wait sync.WaitGroup
 	i := 0

@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
+	"github.com/wtwinlab/altun/consensus/cft"
 )
 
 func init() {

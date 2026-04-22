@@ -10,7 +10,7 @@ import numpy as np
 import time
 from pettingzoo.utils.env import ParallelEnv
 import shutil
-from utils import parse_observation_file, update_and_run_config, check_if_run_success,update_config, apply_config, wait_and_delete_file
+from utils import parse_observation_file, update_and_run_config, check_if_run_success,update_config, apply_config, wait_and_delete_file, reconfig_via_controller
 from loguru import logger
 from reward import call_reward_function
 from altun_env_mutation import call_env_mutate_function
@@ -203,8 +203,60 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         logger.info(f"obs_space_scale: {self.obs_space_scale}")
         logger.info(f"action_space_scale: {self.action_space_scale}")
 
+        # ── Hysteresis state (Exp 2B) ────────────────────────────────────────
+        self._cooldown_steps   = getattr(args, 'cooldown_steps', 0)
+        self._switch_margin    = getattr(args, 'switch_margin',  0.0)
+        self._last_switch_step = -9999
+        self._current_alg      = None
+        self._tps_per_alg      = {}   # alg -> list[float]
+        self._last_action_dict = None
+        self._prev_alg         = None  # for switch timing (Exp 2A)
+        # ────────────────────────────────────────────────────────────────────
+
+        # ── Drift event tracking (Exp 2A redesign) ──────────────────────────
+        # Each step compares the current mutation_env against the previous
+        # one; any change emits a drift_events.jsonl row and bumps
+        # _last_drift_step. switch_detail.csv then attributes each switch
+        # to the most recent drift event. See
+        # exp_logs/exp2a_workload_drift_analysis.md §6 (P1, P2).
+        import copy as _copy_mod  # local alias — copy module is std-lib
+        self._copy_mod            = _copy_mod
+        self._prev_mutation_env   = None
+        self._last_drift_step     = -1
+        self._last_drift_kind     = "none"
+        self._drift_events_file   = os.path.join(os.path.dirname(self.record_file), 'drift_events.jsonl')
+        # ────────────────────────────────────────────────────────────────────
+
+    def _should_switch(self, new_alg):
+        """Return False to veto a switch (hysteresis gate)."""
+        if new_alg is None or new_alg == self._current_alg:
+            return True
+        if self._cooldown_steps > 0:
+            if (self.step_count - self._last_switch_step) < self._cooldown_steps:
+                return False
+        if self._switch_margin > 0.0 and self._current_alg is not None:
+            cur_mean = float(np.mean(self._tps_per_alg.get(self._current_alg, [0])))
+            new_mean = float(np.mean(self._tps_per_alg.get(new_alg, [cur_mean])))
+            if cur_mean > 0 and (new_mean - cur_mean) / cur_mean < self._switch_margin:
+                return False
+        self._last_switch_step = self.step_count
+        self._current_alg = new_alg
+        return True
+
     def step(self, action_dict):
         logger.info(f"ID {self.id} rl step")
+
+        # ── Hysteresis gate (Exp 2B) ─────────────────────────────────────────
+        if self._cooldown_steps > 0 or self._switch_margin > 0.0:
+            try:
+                proposed_alg = json.load(open(self.config['action_file'])).get('algorithm')
+            except Exception:
+                proposed_alg = None
+            if not self._should_switch(proposed_alg):
+                action_dict = self._last_action_dict or action_dict
+        self._last_action_dict = action_dict
+        # ─────────────────────────────────────────────────────────────────────
+
         starttime = time.time()
         isSuccess = self._take_action(action_dict)
         terminated = False
@@ -220,6 +272,55 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
             with open(self.record_file, "a") as f:
                 f.write(f"{self.action_count}, {obs_dic['TPS']}, {obs_dic['latency']}, {reward}, {delta_best}, {delta_pre},{starttime},{endtime},{algorithm}\n")
             logger.info(f"----- log performance, {obs_dic['TPS']}, {obs_dic['latency']}, {reward}, {delta_best}, {delta_pre},{starttime},{endtime},{algorithm}")
+
+            # ── Switch timing log (Exp 2A) ────────────────────────────────────
+            # project_dir is already ".../Altun-core/bin" (scripts pass
+            # $PROJECT_DIR/bin), so switch_timing.json lives directly there;
+            # don't append another 'bin' to the path.
+            try:
+                timing_path = os.path.join(self.config['project_dir'], 'switch_timing.json')
+                switch_timing = json.load(open(timing_path)) if os.path.exists(timing_path) else {}
+            except Exception:
+                switch_timing = {}
+            is_switch = int(self._prev_alg is not None and algorithm != self._prev_alg)
+            switch_log = os.path.join(os.path.dirname(self.record_file), 'switch_detail.csv')
+            if not os.path.exists(switch_log):
+                with open(switch_log, 'w') as f:
+                    f.write('step,from_alg,to_alg,is_switch,'
+                            't_drain_start_ms,t_drain_end_ms,t_bench_end_ms,t_total_ms,'
+                            'drift_trigger_step,steps_since_drift,drift_kind_at_trigger,classification\n')
+            # Drift attribution (Exp 2A redesign P2) — computed from the in-memory
+            # drift history maintained at the end of the previous step().
+            if self._last_drift_step >= 0:
+                steps_since_drift = self.step_count - self._last_drift_step
+                drift_kind = self._last_drift_kind
+                if steps_since_drift <= 2:
+                    classification = "drift_responsive"
+                elif steps_since_drift <= 5:
+                    classification = "delayed_response"
+                else:
+                    classification = "intra_regime"
+            else:
+                steps_since_drift = -1
+                drift_kind = "none"
+                classification = "none"
+            with open(switch_log, 'a') as f:
+                t_drain_start = switch_timing.get('t_drain_start')
+                t_bench_end   = switch_timing.get('t_bench_end')
+                t_total = (t_bench_end - t_drain_start
+                           if t_bench_end is not None and t_drain_start is not None else 0)
+                t_drain_start = t_drain_start or 0
+                t_bench_end   = t_bench_end   or 0
+                f.write(f"{self.action_count},{self._prev_alg or ''},{algorithm},"
+                        f"{is_switch},{t_drain_start},"
+                        f"{switch_timing.get('t_drain_end', 0)},"
+                        f"{t_bench_end},{t_total},"
+                        f"{self._last_drift_step},{steps_since_drift},"
+                        f"{drift_kind},{classification}\n")
+            # update per-alg TPS history for hysteresis
+            self._tps_per_alg.setdefault(algorithm, []).append(obs_dic['TPS'])
+            self._prev_alg = algorithm
+            # ─────────────────────────────────────────────────────────────────
         else:
             logger.info("Run failed or timed out. ")
             logger.info("Rewards are set to 0")
@@ -259,6 +360,55 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
         self.mutation_env = call_env_mutate_function(self.args.mutate_env_fn, self.step_count)
         logger.info(f"New ENV ============================ {self.mutation_env}")
         self.step_count += 1
+
+        # ── Drift event logging (Exp 2A redesign P1) ───────────────────────
+        # Compare the new mutation_env against the last one we saw. Any
+        # delta is a drift event. We log the step at which the drift
+        # "takes effect" — i.e. the step about to run under the new
+        # mutation — so switch_detail rows written during that step can
+        # reference it via self._last_drift_step. Written to
+        # <saved_folder>/drift_events.jsonl (NFS path, same dir as log.csv).
+        try:
+            if self._prev_mutation_env is not None and self.mutation_env != self._prev_mutation_env:
+                prev_bft = bool(self._prev_mutation_env.get('env_bft', False))
+                curr_bft = bool(self.mutation_env.get('env_bft', False))
+                env_bft_flipped = prev_bft != curr_bft
+                changed_fields = sorted([
+                    k for k in set(self._prev_mutation_env) | set(self.mutation_env)
+                    if self._prev_mutation_env.get(k) != self.mutation_env.get(k)
+                ])
+                # L1 delta on numeric fields only.
+                l1 = 0.0
+                for k in changed_fields:
+                    a = self._prev_mutation_env.get(k); b = self.mutation_env.get(k)
+                    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+                        l1 += abs(float(b) - float(a))
+                drift_kind = (
+                    "env_bft_flip" if env_bft_flipped
+                    else "block_boundary"
+                )
+                drift_row = {
+                    "step":             self.step_count,
+                    "wall_clock_ts":    time.time(),
+                    "drift_kind":       drift_kind,
+                    "prev_block":       self._prev_mutation_env,
+                    "new_block":        self.mutation_env,
+                    "changed_fields":   changed_fields,
+                    "env_bft_flipped":  env_bft_flipped,
+                    "feature_l1_delta": round(l1, 3),
+                }
+                try:
+                    with open(self._drift_events_file, "a") as df:
+                        df.write(json.dumps(drift_row) + "\n")
+                except Exception as e:
+                    logger.warning(f"drift log write failed: {e}")
+                self._last_drift_step = self.step_count
+                self._last_drift_kind = drift_kind
+            self._prev_mutation_env = self._copy_mod.deepcopy(self.mutation_env)
+        except Exception as e:
+            # Instrumentation must never break the experiment loop.
+            logger.warning(f"drift event tracking error: {e}")
+        # ─────────────────────────────────────────────────────────────────
         
         #logger.info(f"Detection BFT {self.detection}")
         # if self.detection_isbft is not None:
@@ -311,6 +461,12 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
                                          self.space_name, env_mutation_file=self.config["env_mutation_file"],\
                                               applied_config_file=self.config["action_file"], action_space_name= self.agents, environments=self.environments) 
         
+        # LEGACY (Direction A, 2026-04): the auditor no longer writes b.env.
+        # Under the new framing (see exp_design/exp_plan_3_forensic_audit.md),
+        # mode switching is operator-policy-driven, not auto-detected.
+        # The call below is kept because `detection` will always be None in
+        # the new build, making the `if` block below unreachable. Safe to
+        # remove once every server session has migrated to the new cft-server.
         detection, detection_isbft = wait_and_delete_file(os.path.join(self.config["project_dir"], "b.env"))
         #logger.info(f"wait_and_delete_file {detection}, {detection_isbft}, {detection is not None}")
         if detection is not None:
@@ -402,10 +558,25 @@ class VirtualEnv_MADDPG(ParallelEnv, EzPickle):
 
         logger.info(f"applied action config {action_updated_config}, agent mask {self.agent_mask}")
         logger.info(f"Environemt Change {self.step_count} {self.mutation_env}")
-        _, run_success = update_and_run_config(self.config['action_file'], self.config['action_file'], \
-                              action_updated_config, os.path.join(self.config['project_dir'], "history_configs"), \
-                              self.args.project_dir, self.config["action_space"]["discrete"], mutation_env=self.mutation_env,
-                               threshold_time= self.config['run_timeout'], max_retries= self.config['run_trial_num'])
+
+        # Controller mode: use altun-controller gRPC/HTTP API for protocol switching
+        controller_addr = getattr(self.args, 'controller_addr', None)
+        if controller_addr:
+            algorithm = action_updated_config.get('algorithm', '')
+            is_bft = self.mutation_env.get('env_bft', False)
+            result = reconfig_via_controller(controller_addr, algorithm, is_bft)
+            run_success = result.get('success', False)
+            # Store switch timing from controller response
+            switch_info = result.get('new_instance', {})
+            if isinstance(switch_info, dict) and 'switch_timing' in switch_info:
+                self._last_switch_timing = switch_info['switch_timing']
+        else:
+            # Legacy mode: kill/restart via run_system.sh
+            _, run_success = update_and_run_config(self.config['action_file'], self.config['action_file'], \
+                                  action_updated_config, os.path.join(self.config['project_dir'], "history_configs"), \
+                                  self.args.project_dir, self.config["action_space"]["discrete"], mutation_env=self.mutation_env,
+                                   threshold_time= self.config['run_timeout'], max_retries= self.config['run_trial_num'])
+
         if run_success:
             # Only check the performance file if the run was successful
             logger.info("===== Run success and check performance file")

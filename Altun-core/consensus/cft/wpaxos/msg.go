@@ -4,8 +4,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/wtwinlab/Altun/layers/consensus/cft"
-	"github.com/wtwinlab/Altun/layers/consensus/cft/paxos"
+	"github.com/wtwinlab/altun/consensus/cft"
+	"github.com/wtwinlab/altun/consensus/cft/paxos"
 )
 
 func init() {
