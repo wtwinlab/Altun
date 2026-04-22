@@ -111,16 +111,7 @@ python Altun_RL/inference_maddpg.py \
 
 ---
 
-* `system_config/config.json` contains the configurations of  Altun-RL.
-* `online_maddpg.py` is the main script of Altun-RL.
+## Key Configuration
 
-    - `$config_cft_file` is the path to `system_config/config.json`
-    - `$project_dir` is the path to Altun-Core
-    - `$saved_folder` is the saved folder for Altun-Core-RL
-    - `$fn_name` is the reward function name, default `altun_reward`.
-    - `$top_k` and `$reward_discount` are two parameters for the reward function.
-    ```shell
-    
-* `reward.py` implements the reward function.
-* `utils.py` implements some auxiliary functions
+- `systems/config_default.json` — observation space, action space (protocol pools), benchmark parameters* `utils.py` implements some auxiliary functions
 * `maddpg_env.py` wraps the interaction between `Altun-Core` and `Altun-RL`.
