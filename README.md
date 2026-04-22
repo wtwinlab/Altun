@@ -1,6 +1,10 @@
 # Altun
 **Altun** is a tunable distributed ledger framework that achieves adaptivity along two dimensions: workload and fault model. An operator schedules policy windows (CFT/BFT) through a signed control-plane input; within each window, an online MADDPG agent selects a consensus protocol to optimize long-term throughput and latency. A virtual-log reconfiguration mechanism carries ordered state across protocol boundaries with bounded disruption, and an off-path auditor provides post-hoc forensic evidence during CFT execution.
 
+## Repository Structure
+
+The repository (**Altun_RL**) contains the RL-based protocol selector. The [Altun-core] repository contains consensus protocol implementations, the forensic auditor, and the virtual-log reconfiguration plane.
+
 # Altun-Core and Altun-RL
 ### Altun-core (Go)
 
@@ -17,7 +21,6 @@ Consensus protocol implementations behind a uniform API (propose/advance/learn, 
 | Chained HotStuff | BFT | Pipelined views, linear communication |
 | Fast HotStuff | BFT | Fast-path optimization, reduced RTT |
 
-Also includes the forensic auditor (off-path accountability checker) and YCSB-based benchmarking infrastructure.
 
 ### Altun_RL (Python)
 
@@ -25,14 +28,14 @@ MADDPG-based online learning framework for protocol selection.
 
 | File | Description |
 |---|---|
-| `online_maddpg.py` | Main training script |
-| `inference_maddpg.py` | Inference with trained checkpoints |
-| `maddpg_env.py` | Environment wrapper — bridges Altun-core and Altun_RL |
-| `reward.py` | Reward function (`best_and_pre`) |
-| `altun_env_mutation.py` | Workload drift / environment mutation logic |
-| `baseline_selectors.py` | Baseline selectors (Thompson Sampling, UCB1, ε-greedy, etc.) |
-| `run_selector_comparison.py` | Selector strategy comparison experiments |
-| `utils.py` | Auxiliary functions |
+| `online_maddpg.py` | Training / inference entry point |
+| `maddpg_env.py` | PettingZoo-compatible environment; hysteresis gate; switch logging |
+| `reward.py` | Reward functions (`best_and_pre` is the default) |
+| `altun_env_mutation.py` | Workload mutation strategies (block schedules, drift benchmarks) |
+| `baseline_selectors.py` | Thompson Sampling, UCB1, Greedy, BestFixed selectors |
+| `run_selector_comparison.py` | Selector strategy comparison driver (Exp 1) |
+| `utils.py` | Config management, benchmark bridge, controller API client |
+| `systems/config_default.json` | Observation and action space definition |
 
 ---
 
@@ -51,11 +54,17 @@ Only one agent is active per step (determined by the operator's policy window); 
 ### Prerequisites
 
 ```bash
-# Altun_RL
-pip install -r Altun_RL/requirements.txt
+# Python (Altun_RL)
+conda create -n rl python=3.12
+conda activate rl
+pip install agilerl pettingzoo gymnasium torch numpy pandas
 
-# Altun-core
-cd Altun-core && make        # requires Go 1.19+
+# Go (Altun-core)
+cd Altun-core
+go build ./...                           # requires Go 1.21+
+go build -o bin/cft-adapter      ./cmd/cft-adapter/
+go build -o bin/bft-adapter      ./cmd/bft-adapter/
+go build -o bin/altun-controller ./cmd/altun-controller/
 ```
 
 ### Clone (fresh machine)
@@ -64,9 +73,18 @@ cd Altun-core && make        # requires Go 1.19+
 bash setup.sh
 ```
 
-### Training
+### Start the Altun stack
 
 ```bash
+# 1: Start the Altun stack
+cd Altun-core/bin
+bash start_altun.sh
+# Protocol switching through the altun-controller
+
+### Run RL agent 
+
+```bash
+# 2: Training
 python Altun_RL/online_maddpg.py \
     --config_file system_config/config.json \
     --project_dir <path-to-Altun-core> \
@@ -82,9 +100,8 @@ python Altun_RL/online_maddpg.py \
     --reward TPS
 ```
 
-### Inference
-
 ```bash
+#  2: Inference
 python Altun_RL/inference_maddpg.py \
     --config_file system_config/config.json \
     --project_dir <path-to-Altun-core> \
