@@ -113,5 +113,5 @@ python Altun_RL/inference_maddpg.py \
 
 ## Key Configuration
 
-- `systems/config_default.json` — observation space, action space (protocol pools), benchmark parameters* `utils.py` implements some auxiliary functions
-* `maddpg_env.py` wraps the interaction between `Altun-Core` and `Altun-RL`.
+- `systems/config_default.json` — observation space, action space (protocol pools), benchmark parameters
+
