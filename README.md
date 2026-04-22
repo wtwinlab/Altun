@@ -8,7 +8,7 @@ The repository (**Altun_RL**) contains the RL-based protocol selector. The [Altu
 # Altun-Core and Altun-RL
 ### Altun-core (Go)
 
-Consensus protocol implementations behind a uniform API (propose/advance/learn, view-change hooks, checkpoint callbacks). Currently integrates eight protocols spanning CFT and BFT families:
+Consensus protocol implementations behind a uniform gRPC `ConsensusInstance` API (propose, seal, checkpoint, restore). Currently integrates eight protocols spanning CFT and BFT families:
 
 | Protocol | Family | Key Property |
 |---|---|---|
