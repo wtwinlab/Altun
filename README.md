@@ -1,6 +1,10 @@
 # Altun
 **Altun** is a tunable distributed ledger framework that achieves adaptivity along two dimensions: workload and fault model. An operator schedules policy windows (CFT/BFT) through a signed control-plane input; within each window, an online MADDPG agent selects a consensus protocol to optimize long-term throughput and latency. A virtual-log reconfiguration mechanism carries ordered state across protocol boundaries with bounded disruption, and an off-path auditor provides post-hoc forensic evidence during CFT execution.
 
+## Architecture
+
+![Altun Architecture](figures/architecture_v5.png)
+
 ## Repository Structure
 
 The repository **Altun_RL** contains the RL-based protocol selector. The **Altun-core** repository contains consensus protocol implementations, the forensic auditor, and the virtual-log reconfiguration plane.
