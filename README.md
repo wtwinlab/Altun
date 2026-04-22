@@ -3,7 +3,7 @@
 
 ## Repository Structure
 
-The repository (**Altun_RL**) contains the RL-based protocol selector. The [Altun-core] repository contains consensus protocol implementations, the forensic auditor, and the virtual-log reconfiguration plane.
+The repository **Altun_RL** contains the RL-based protocol selector. The **Altun-core** repository contains consensus protocol implementations, the forensic auditor, and the virtual-log reconfiguration plane.
 
 # Altun-Core and Altun-RL
 ### Altun-core (Go)
