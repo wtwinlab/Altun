@@ -1,0 +1,6 @@
+log/
+__pycache__
+log_**/
+figures/
+
+deployment/.bin

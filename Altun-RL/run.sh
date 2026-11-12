@@ -1,0 +1,1 @@
+bash run_system.sh /data-ssd/tianwen/workers/worker089_Altun/Altun-core/bin
