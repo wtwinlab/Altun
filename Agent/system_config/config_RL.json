@@ -1,0 +1,38 @@
+{
+    "bft": false,
+    "bft_config": {
+        "nREPLICAS": 16,
+        "nCLIENTS": 10,
+        "nconcurrency": 1,
+        "nratelimit": 10,
+        "nbatchsize": 10,
+        "npayloadsize": 128,
+        "nleaderrotation": "fixed"
+    },
+    "algorithm": "wpaxos",
+    "policy": "majority",
+    "threshold": 3,
+    "thrifty": false,
+    "chan_buffer_size": 1024,
+    "buffer_size": 1024,
+    "multiversion": false,
+    "benchmark": {
+        "T": 10,
+        "N": 1,
+        "K": 100000,
+        "W": 0.9,
+        "Throttle": 0,
+        "Concurrency": 500,
+        "Distribution": "uniform",
+        "LinearizabilityCheck": false,
+        "Conflicts": 0,
+        "Min": 0,
+        "Mu": 500,
+        "Sigma": 50,
+        "Move": false,
+        "Speed": 10,
+        "Zipfian_s": 2,
+        "Zipfian_v": 1,
+        "Lambda": 0.01
+    }
+}
