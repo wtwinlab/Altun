@@ -1,0 +1,13 @@
+{
+    "bft": false,
+    "algorithm": "paxos", 
+    "nodesize": 4,
+    "clients": 4,
+    "concurrency": 500,
+    "ratelimit": 100000,
+    "requests": 1000000,
+    "writeratio": 0.9,
+    "batchsize": 1000,
+    "payloadsize": 128,
+    "distribution": "uniform"
+}

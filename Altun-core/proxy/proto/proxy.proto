@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+option go_package = "layers/proxy/proto";
+
+service Proxy {
+    rpc Set (SetRequest) returns (SetResponse);
+    rpc Get (GetRequest) returns (GetResponse);
+}
+
+message GetRequest {
+    string ClientID =1; 
+	int64 CommandID =2;
+    string key = 3;
+}
+
+message GetResponse {
+    string value = 1;
+    int64 version = 2;
+}
+
+message SetRequest {
+    string ClientID =1; 
+	int64 CommandID =2;
+    string key = 3;
+    string value = 4;
+    int64 version = 5;
+}
+
+message SetResponse {
+    string txid = 1;
+}

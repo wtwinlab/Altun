@@ -1,0 +1,13 @@
+{
+    "bft": false,
+    "algorithm": "chainedhotstuff", 
+    "nodesize": 4,
+    "clients": 1,
+    "concurrency": 4,
+    "ratelimit": 100000,
+    "requests": 10000,
+    "writeratio": 0.9,
+    "batchsize": 1,
+    "payloadsize": 64,
+    "distribution": "uniform"
+}
