@@ -1,0 +1,9 @@
+agilerl==1.0.14
+pettingzoo==1.24.3
+gymnasium==0.29.1
+torch==2.4.1
+numpy==1.26.4
+pandas==2.2.3
+loguru==0.7.2
+portalocker==2.10.1
+requests==2.32.3

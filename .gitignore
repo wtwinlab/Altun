@@ -1,0 +1,12 @@
+# build outputs are listed in Altun-core/.gitignore
+__pycache__/
+*.pyc
+*.pt
+*.log
+*.out
+*.trc
+log/
+output/
+.DS_Store
+.vscode/
+.idea/

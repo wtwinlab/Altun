@@ -1,0 +1,35 @@
+---
+id : CLIENT_ID
+
+n : NUM_NODES
+f : NUM_FAULTS
+
+logging: "CLIENT_LOG_LEVEL"  # One of {debug, info, error}; MIR_CLIENT_LOG (default error: info logs every request/response)
+blocking: false # Set to true for the client to wait command line input before starting
+
+# Request fromat
+requestSize: PAYLOAD_SIZE   # 500
+signatureVerification: true
+
+# Parameters that define request rate
+requestsPerClient: REQUESTS  # 100000 Total number of requests the client submits is RequestsPerClientCore*CPUs
+parallelism: CONCURRENCY   # 4   # Number of requests send in parallel
+requestRate: RATE_LIMIT    # 1000          # Max request rate per client, in requests per second. Set to -1 for no limit.
+clients: NUM_CLIENTS       # Number of clients
+clientRunTime: CLIENT_RUN_TIME_MS  # measurement window in ms (MIR_WINDOW_MS, default 10000); the client stops submitting and reports completed requests when it expires
+
+# This parameters define how the client communicates with the servers
+broadcast: true   # If true send requests to Receivers servers estimating which server has an active bucket per request
+receivers: MIR_RECEIVERS_N  # MIR_RECEIVERS (default n); number of replicas each request is sent to; non-leader replicas do not forward requests, so with a single leader this must cover the leader
+dedicated: MIR_DEDICATED_B  # MIR_DEDICATED (default false); if true send requests only to a destination server
+destination: 0    # if communication is dedicated
+
+# Set this parameters same as in server configuration to guess active buckets correctly
+batchSizeBytes: BATCH_SIZE_BYTES      # 2000000
+bucketRotationPeriod: EPOCH           # max epoch size in recovery & bucket rotation period in stable mode
+buckets: 2                            # buckets per leader
+
+useTLS: true
+
+servers:
+  caCertFile: CA_PATH

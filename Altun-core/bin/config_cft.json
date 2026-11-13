@@ -1,0 +1,40 @@
+{
+  "algorithm": "paxos",
+  "policy": "majority",
+  "threshold": 3,
+  "thrifty": false,
+  "chan_buffer_size": 64,
+  "buffer_size": 64,
+  "multiversion": false,
+  "benchmark": {
+    "T": 10,
+    "N": 100000,
+    "K": 1000,
+    "W": 0.9,
+    "Throttle": 1000000,
+    "Concurrency": 4,
+    "Distribution": "uniform",
+    "LinearizabilityCheck": false,
+    "Conflicts": 0,
+    "Min": 0,
+    "Mu": 500,
+    "Sigma": 50,
+    "Move": false,
+    "Speed": 10,
+    "Zipfian_s": 2,
+    "Zipfian_v": 1,
+    "Lambda": 0.01
+  },
+  "address": {
+    "1.1": "tcp://127.0.0.1:31735",
+    "1.2": "tcp://127.0.0.1:31736",
+    "1.3": "tcp://127.0.0.1:31737",
+    "1.4": "tcp://127.0.0.1:31738"
+  },
+  "http_address": {
+    "1.1": "http://127.0.0.1:18080",
+    "1.2": "http://127.0.0.1:18081",
+    "1.3": "http://127.0.0.1:18082",
+    "1.4": "http://127.0.0.1:18083"
+  }
+}

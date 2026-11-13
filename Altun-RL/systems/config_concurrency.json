@@ -1,0 +1,48 @@
+{ 
+    "current_performance_file":"benchmark.log",
+    "default_config_file":"config_RL_default.json",
+    "action_file":"config_RL.json",
+    "env_mutation_file":"env_mutation.json",
+    "env_mutation":["clients", "writeratio", "nodesize", "concurrency", "ratelimit", "batchsize", "payloadsize", "bft"],
+    "history_performance_dir":"systems/performance_history",
+    "history_action_dir":"systems/history_action",
+    "run_timeout":360,
+    "run_trial_num":2,
+    "observation_space":{
+        "performance":{
+            "latency":[0,510],
+            "TPS":[0,19150]
+        },
+        "conditions":{
+            "discrete":{
+                "bft": [true, false],
+                "algorithm": ["paxos", "epaxos", "vpaxos", "wpaxos", "pbft", "mirbft", "chainedhotstuff", "fasthotstuff"],
+                "nodesize":[4, 8, 16, 32],
+                "clients":[1, 4, 8, 16, 32, 64],
+                "concurrency":[1, 4, 10, 20, 50, 100, 200, 500, 800, 1000],
+                "ratelimit":[200, 500, 1000, 5000, 10000, 100000],
+                "writeratio":[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+                "requests": [100, 1000, 10000, 100000],
+                "batchsize":[1, 10, 100, 500, 1000, 5000, 10000],
+                "payloadsize":[64, 128, 256 ,512, 1024],
+                "distribution": ["uniform", "order", "conflict", "normal", "zipfan", "exponential"]
+            },
+            "range":{              
+            } 
+        },
+        "network":{
+            "discrete":{
+                },
+            "range":{
+            }
+        }
+    } ,
+    "action_space":{
+        "discrete":{
+            "bft_alg": ["mirbft",  "pbft", "chainedhotstuff", "fasthotstuff"],
+            "cft_alg": ["paxos", "epaxos", "vpaxos", "wpaxos", "mirbft",  "pbft", "chainedhotstuff","fasthotstuff"]
+        },
+        "range":{ 
+        }
+    }
+}

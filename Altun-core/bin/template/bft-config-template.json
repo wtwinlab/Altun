@@ -1,0 +1,54 @@
+{
+  "bft_config": {
+      "nREPLICAS": 4,
+      "nCLIENTS": 4,
+      "nconcurrency": 500,
+      "nratelimit": 100000,
+      "nbatchsize": 1000,
+      "npayloadsize": 128,
+      "nleaderrotation": "fixed"
+  },
+  "bft": false,
+  "algorithm": "mirbft",
+  "policy": "majority",
+  "threshold": 3,
+  "thrifty": false,
+  "chan_buffer_size": 1024,
+  "buffer_size": 1024,
+  "multiversion": false,
+  "benchmark": {
+      "T": 10,
+      "N": 1,
+      "K": 100000,
+      "W": 0.9,
+      "Throttle": 0,
+      "Concurrency": 500,
+      "Distribution": "uniform",
+      "LinearizabilityCheck": false,
+      "Conflicts": 0,
+      "Min": 0,
+      "Mu": 500,
+      "Sigma": 50,
+      "Move": false,
+      "Speed": 10,
+      "Zipfian_s": 2,
+      "Zipfian_v": 1,
+      "Lambda": 0.01
+  },
+  "address": {
+      "1.1": "tcp://127.0.0.1:11735",
+      "1.2": "tcp://127.0.0.1:11736",
+      "1.3": "tcp://127.0.0.1:11737",
+      "2.1": "tcp://127.0.0.1:11738",
+      "2.2": "tcp://127.0.0.1:11739",
+      "2.3": "tcp://127.0.0.1:11740"
+  },
+  "http_address": {
+      "1.1": "http://127.0.0.1:18080",
+      "1.2": "http://127.0.0.1:18081",
+      "1.3": "http://127.0.0.1:18082",
+      "2.1": "http://127.0.0.1:18083",
+      "2.2": "http://127.0.0.1:18084",
+      "2.3": "http://127.0.0.1:18085"
+  }
+}

@@ -1,0 +1,23 @@
+---
+linters:
+  enable:
+    - revive
+    - gocyclo
+    - misspell
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+
+  misspell:
+    locale: US
+
+  revive:
+    rules:
+      - name: unexported-return
+        disabled: true
+      - name: unused-parameter
+
+issues:
+  exclude-use-default: false
+  exclude-case-sensitive: false
